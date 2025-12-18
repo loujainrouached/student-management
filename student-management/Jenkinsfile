@@ -55,7 +55,7 @@ pipeline {
                 echo '☸️ Deploying to Kubernetes...'
                 sh """
                     kubectl set image deployment/studentmang-app studentmang-app=${DOCKER_IMAGE}:${DOCKER_TAG} -n ${NAMESPACE}
-                    kubectl rollout status deployment/studentmang-app -n ${NAMESPACE} --timeout=5m
+                    kubectl rollout status deployment/studentmang-app -n ${NAMESPACE} --timeout=10m
                 """
             }
         }
