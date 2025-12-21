@@ -2,10 +2,20 @@ pipeline {
     agent any
     
     environment {
+        // Docker Configuration
         DOCKER_IMAGE = 'loujainrouached/student-app'
         DOCKER_TAG = "${BUILD_NUMBER}"
+        
+        // Kubernetes Configuration
         NAMESPACE = 'devops'
+        
+        // Git Configuration
         GIT_REPO = 'https://github.com/loujainrouached/student-management.git'
+        
+        // SonarQube Configuration
+        SONAR_HOST = 'http://10.0.2.15:9000'
+        SONAR_PROJECT_KEY = 'student-management'
+        SONAR_PROJECT_NAME = 'Student Management'
     }
     
     stages {
@@ -22,6 +32,25 @@ pipeline {
                 dir('student-management') {
                     sh 'mvn clean package -DskipTests'
                 }
+            }
+        }
+        
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 Running SonarQube code quality analysis...'
+                dir('student-management') {
+                    withCredentials([string(credentialsId: 'sonarqube-token', variable: 'SONAR_TOKEN')]) {
+                        sh """
+                            mvn sonar:sonar \
+                                -Dsonar.host.url=${SONAR_HOST} \
+                                -Dsonar.login=\${SONAR_TOKEN} \
+                                -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                                -Dsonar.projectName='${SONAR_PROJECT_NAME}' \
+                                -Dsonar.java.binaries=target/classes
+                        """
+                    }
+                }
+                echo "✅ SonarQube analysis completed. View report at: ${SONAR_HOST}"
             }
         }
         
@@ -64,11 +93,17 @@ pipeline {
             steps {
                 echo '✅ Verifying deployment...'
                 sh """
-                    echo "=== Pods ==="
+                    echo "======================================"
+                    echo "         DEPLOYMENT STATUS"
+                    echo "======================================"
+                    echo ""
+                    echo "📦 Pods in namespace ${NAMESPACE}:"
                     kubectl get pods -n ${NAMESPACE}
                     echo ""
-                    echo "=== Services ==="
+                    echo "🌐 Services in namespace ${NAMESPACE}:"
                     kubectl get svc -n ${NAMESPACE}
+                    echo ""
+                    echo "======================================"
                 """
             }
         }
@@ -76,11 +111,26 @@ pipeline {
     
     post {
         success {
-            echo '✅ Deployment RÉUSSI !'
+            echo '✅ ========================================='
+            echo '✅  PIPELINE EXECUTED SUCCESSFULLY! 🎉'
+            echo '✅ ========================================='
+            echo "📊 SonarQube Report: ${SONAR_HOST}"
+            echo "🐳 Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo "☸️  Kubernetes Namespace: ${NAMESPACE}"
+            echo '✅ ========================================='
         }
         failure {
-            echo '❌ Deployment ÉCHOUÉ !'
+            echo '❌ ========================================='
+            echo '❌  PIPELINE FAILED! 💥'
+            echo '❌ ========================================='
+            echo 'Please check the logs above for errors.'
+        }
+        always {
+            echo '🧹 Cleaning up Docker images...'
+            sh """
+                docker rmi ${DOCKER_IMAGE}:${DOCKER_TAG} || true
+                docker image prune -f || true
+            """
         }
     }
 }
-
