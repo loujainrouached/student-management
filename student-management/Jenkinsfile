@@ -13,6 +13,9 @@ pipeline {
 
     stages {
 
+        /* =======================
+           CHECKOUT CODE
+        ======================= */
         stage('Checkout') {
             steps {
                 echo '📥 Cloning repository...'
@@ -21,52 +24,72 @@ pipeline {
             }
         }
 
+        /* =======================
+           MAVEN BUILD
+        ======================= */
         stage('Build with Maven') {
             steps {
                 echo '🔨 Maven build...'
-                sh 'mvn clean package -DskipTests'
-            }
-        }
-
-        stage('SonarQube Analysis') {
-            steps {
-                echo '🔍 SonarQube analysis...'
-                withSonarQubeEnv('Sonarqube') {
-                    sh 'mvn sonar:sonar || true'
+                dir('student-management') {
+                    sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
+        /* =======================
+           SONARQUBE
+        ======================= */
+        stage('SonarQube Analysis') {
+            steps {
+                echo '🔍 SonarQube analysis...'
+                dir('student-management') {
+                    withSonarQubeEnv('Sonarqube') {
+                        sh 'mvn sonar:sonar || true'
+                    }
+                }
+            }
+        }
+
+        /* =======================
+           DOCKER BUILD (MINIKUBE)
+        ======================= */
         stage('Build Docker Image (Minikube)') {
             steps {
-                echo '🐳 Building Docker image inside Minikube...'
-                sh """
-                    minikube profile minikube
-                    minikube image build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                """
+                echo '🐳 Building Docker image in Minikube...'
+                dir('student-management') {
+                    sh """
+                        minikube image build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                    """
+                }
             }
         }
 
+        /* =======================
+           KUBERNETES DEPLOY
+        ======================= */
         stage('KUBERNETES DEPLOY') {
             steps {
-                echo '☸️ Kubernetes Deployment...'
-                sh """
-                    kubectl get nodes
+                echo '☸️ Deploying to Kubernetes...'
+                sh '''
                     kubectl apply -f k8s/
-                    kubectl get pods -n ${NAMESPACE}
-                    kubectl get svc -n ${NAMESPACE}
-                """
+                    kubectl rollout status deployment/student-management -n devops --timeout=5m
+                    kubectl get pods -n devops
+                    kubectl get svc -n devops
+                '''
             }
         }
 
+        /* =======================
+           API REST TEST
+        ======================= */
         stage('CREATE DEPARTMENT (API REST)') {
             steps {
-                echo '📡 Creating department via API...'
+                echo '🌐 Calling REST API...'
                 sh '''
                     sleep 20
                     curl -X POST http://192.168.49.2:32639/department/createDepartment \
-                         -H "Content-Type: application/json" \
-                         -d '{"name":"Finance","location":"Sfax"}'
+                    -H "Content-Type: application/json" \
+                    -d '{"name":"Finance","location":"Sfax"}'
                 '''
             }
         }
@@ -74,7 +97,7 @@ pipeline {
 
     post {
         success {
-            echo '✅ PIPELINE TERMINÉ AVEC SUCCÈS 🎉'
+            echo '✅ PIPELINE TERMINÉ AVEC SUCCÈS'
         }
         failure {
             echo '❌ PIPELINE ÉCHOUÉ'
