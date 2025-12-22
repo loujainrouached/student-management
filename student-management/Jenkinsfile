@@ -2,7 +2,7 @@ pipeline {
     agent any
 
     tools {
-    maven 'MAVEN'
+        maven 'MAVEN'
     }
 
     environment {
@@ -48,7 +48,7 @@ pipeline {
 
         stage('Build Docker Image') {
             steps {
-                echo '🐳 Building Docker image...'
+                echo '🐳 Building Docker image locally...'
                 dir('student-management') {
                     sh """
                         docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
@@ -58,26 +58,9 @@ pipeline {
             }
         }
 
-        stage('Push Docker Image') {
-            steps {
-                echo '📤 Pushing Docker image to Docker Hub...'
-                withCredentials([usernamePassword(
-                    credentialsId: 'dockerhub-credentials',
-                    usernameVariable: 'DOCKER_USER',
-                    passwordVariable: 'DOCKER_PASS'
-                )]) {
-                    sh '''
-                        echo $DOCKER_PASS | docker login -u $DOCKER_USER --password-stdin
-                        docker push ${DOCKER_IMAGE}:${DOCKER_TAG}
-                        docker push ${DOCKER_IMAGE}:latest
-                    '''
-                }
-            }
-        }
-
         stage('Deploy to Kubernetes') {
             steps {
-                echo '☸️ Deploying to Kubernetes...'
+                echo '☸️ Deploying to Kubernetes (local image)...'
                 sh """
                     kubectl set image deployment/studentmang-app \
                     studentmang-app=${DOCKER_IMAGE}:${DOCKER_TAG} \
@@ -93,12 +76,8 @@ pipeline {
             steps {
                 echo '✅ Verifying deployment...'
                 sh """
-                    echo "======================================"
-                    echo "         DEPLOYMENT STATUS"
-                    echo "======================================"
                     kubectl get pods -n ${NAMESPACE}
                     kubectl get svc -n ${NAMESPACE}
-                    echo "======================================"
                 """
             }
         }
@@ -106,24 +85,16 @@ pipeline {
 
     post {
         success {
-            echo '✅ ========================================='
-            echo '✅  PIPELINE EXECUTED SUCCESSFULLY! 🎉'
-            echo '✅ ========================================='
+            echo '✅ PIPELINE EXECUTED SUCCESSFULLY 🎉'
             echo "🐳 Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
-            echo "☸️  Kubernetes Namespace: ${NAMESPACE}"
-            echo '✅ ========================================='
+            echo "☸️ Kubernetes Namespace: ${NAMESPACE}"
         }
         failure {
-            echo '❌ ========================================='
-            echo '❌  PIPELINE FAILED! 💥'
-            echo '❌ ========================================='
-            echo 'Please check the logs above for errors.'
+            echo '❌ PIPELINE FAILED'
         }
         always {
-            echo '🧹 Cleaning up Docker images...'
-            sh '''
-                docker image prune -f || true
-            '''
+            echo '🧹 Cleaning unused Docker images...'
+            sh 'docker image prune -f || true'
         }
     }
 }
