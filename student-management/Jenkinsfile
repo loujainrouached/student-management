@@ -9,7 +9,6 @@ pipeline {
         DOCKER_IMAGE = 'loujainrouached/student-app'
         DOCKER_TAG   = "${BUILD_NUMBER}"
         NAMESPACE    = 'devops'
-        GIT_REPO     = 'https://github.com/loujainrouached/student-management.git'
     }
 
     stages {
@@ -17,72 +16,68 @@ pipeline {
         stage('Checkout') {
             steps {
                 echo '📥 Cloning repository...'
-                git branch: 'main', url: "${GIT_REPO}"
+                git branch: 'main',
+                    url: 'https://github.com/loujainrouached/student-management.git'
             }
         }
 
         stage('Build with Maven') {
             steps {
                 echo '🔨 Maven build...'
-                dir('student-management') {
-                    sh 'mvn clean package -DskipTests'
-                }
+                sh 'mvn clean package -DskipTests'
             }
         }
 
         stage('SonarQube Analysis') {
             steps {
                 echo '🔍 SonarQube analysis...'
-                dir('student-management') {
-                    withSonarQubeEnv('Sonarqube') {
-                        sh 'mvn sonar:sonar || true'
-                    }
+                withSonarQubeEnv('Sonarqube') {
+                    sh 'mvn sonar:sonar || true'
                 }
             }
         }
 
         stage('Build Docker Image (Minikube)') {
             steps {
-                echo '🐳 Building Docker image directly inside Minikube...'
-                dir('student-management') {
-                    sh """
-                        minikube image build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                    """
-                }
-            }
-        }
-
-        stage('Deploy to Kubernetes') {
-            steps {
-                echo '☸️ Deploying to Kubernetes...'
+                echo '🐳 Building Docker image inside Minikube...'
                 sh """
-                    kubectl set image deployment/studentmang-app \
-                    studentmang-app=${DOCKER_IMAGE}:${DOCKER_TAG} \
-                    -n ${NAMESPACE}
-
-                    kubectl rollout status deployment/studentmang-app \
-                    -n ${NAMESPACE} --timeout=10m
+                    minikube profile minikube
+                    minikube image build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                 """
             }
         }
 
-        stage('Verify Deployment') {
+        stage('KUBERNETES DEPLOY') {
             steps {
-                echo '✅ Verifying deployment...'
+                echo '☸️ Kubernetes Deployment...'
                 sh """
+                    kubectl get nodes
+                    kubectl apply -f k8s/
                     kubectl get pods -n ${NAMESPACE}
                     kubectl get svc -n ${NAMESPACE}
                 """
+            }
+        }
+
+        stage('CREATE DEPARTMENT (API REST)') {
+            steps {
+                echo '📡 Creating department via API...'
+                sh '''
+                    sleep 20
+                    curl -X POST http://192.168.49.2:32639/department/createDepartment \
+                         -H "Content-Type: application/json" \
+                         -d '{"name":"Finance","location":"Sfax"}'
+                '''
             }
         }
     }
 
     post {
         success {
-            echo '✅ PIPELINE SUCCESS 🎉'
+            echo '✅ PIPELINE TERMINÉ AVEC SUCCÈS 🎉'
         }
         failure {
-            echo '❌ PIPELINE FAILED'
+            echo '❌ PIPELINE ÉCHOUÉ'
         }
     }
 }
