@@ -6,59 +6,61 @@ pipeline {
     }
 
     environment {
+        // Docker Configuration
         DOCKER_IMAGE = 'loujainrouached/student-app'
         DOCKER_TAG   = "${BUILD_NUMBER}"
-        NAMESPACE    = 'devops'
-        GIT_REPO     = 'https://github.com/loujainrouached/student-management.git'
+
+        // Kubernetes Configuration
+        NAMESPACE = 'devops'
+
+        // Git Configuration
+        GIT_REPO = 'https://github.com/loujainrouached/student-management.git'
     }
 
     stages {
 
-        stage('GIT') {
+        stage('Checkout') {
             steps {
-                git branch: 'main',
-                    url: "${GIT_REPO}"
+                echo '📥 Cloning repository...'
+                git branch: 'main', url: "${GIT_REPO}"
             }
         }
 
-        stage('MVN CLEAN') {
+        stage('Build with Maven') {
             steps {
-                sh 'mvn clean'
-            }
-        }
-
-        stage('MVN COMPILE') {
-            steps {
-                sh 'mvn compile'
-            }
-        }
-
-        stage('MVN PACKAGE') {
-            steps {
-                sh 'mvn package -DskipTests'
+                echo '🔨 Building application with Maven...'
+                dir('student-management') {
+                    sh 'mvn clean package -DskipTests'
+                }
             }
         }
 
         stage('SONARQUBE ANALYSIS') {
             steps {
                 echo '🔍 SonarQube analysis...'
-                withSonarQubeEnv('Sonarqube') {
-                    sh 'mvn sonar:sonar || true'
+                dir('student-management') {
+                    withSonarQubeEnv('Sonarqube') {
+                        sh 'mvn sonar:sonar || true'
+                    }
                 }
             }
         }
 
-        stage('DOCKER BUILD') {
+        stage('Build Docker Image') {
             steps {
-                sh """
-                    docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                    docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
-                """
+                echo '🐳 Building Docker image...'
+                dir('student-management') {
+                    sh """
+                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
+                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                    """
+                }
             }
         }
 
-        stage('DOCKER PUSH') {
+        stage('Push Docker Image') {
             steps {
+                echo '📤 Pushing Docker image to Docker Hub...'
                 withCredentials([usernamePassword(
                     credentialsId: 'dockerhub-credentials',
                     usernameVariable: 'DOCKER_USER',
@@ -73,24 +75,30 @@ pipeline {
             }
         }
 
-        stage('KUBERNETES DEPLOY') {
+        stage('Deploy to Kubernetes') {
             steps {
+                echo '☸️ Deploying to Kubernetes...'
                 sh """
                     kubectl set image deployment/studentmang-app \
                     studentmang-app=${DOCKER_IMAGE}:${DOCKER_TAG} \
                     -n ${NAMESPACE}
 
                     kubectl rollout status deployment/studentmang-app \
-                    -n ${NAMESPACE} --timeout=5m
+                    -n ${NAMESPACE} --timeout=10m
                 """
             }
         }
 
-        stage('VERIFY') {
+        stage('Verify Deployment') {
             steps {
+                echo '✅ Verifying deployment...'
                 sh """
+                    echo "======================================"
+                    echo "         DEPLOYMENT STATUS"
+                    echo "======================================"
                     kubectl get pods -n ${NAMESPACE}
                     kubectl get svc -n ${NAMESPACE}
+                    echo "======================================"
                 """
             }
         }
@@ -98,13 +106,24 @@ pipeline {
 
     post {
         success {
-            echo '✅ PIPELINE SUCCESS 🎉'
+            echo '✅ ========================================='
+            echo '✅  PIPELINE EXECUTED SUCCESSFULLY! 🎉'
+            echo '✅ ========================================='
+            echo "🐳 Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            echo "☸️  Kubernetes Namespace: ${NAMESPACE}"
+            echo '✅ ========================================='
         }
         failure {
-            echo '❌ PIPELINE FAILED'
+            echo '❌ ========================================='
+            echo '❌  PIPELINE FAILED! 💥'
+            echo '❌ ========================================='
+            echo 'Please check the logs above for errors.'
         }
         always {
-            sh 'docker image prune -f || true'
+            echo '🧹 Cleaning up Docker images...'
+            sh '''
+                docker image prune -f || true
+            '''
         }
     }
 }
