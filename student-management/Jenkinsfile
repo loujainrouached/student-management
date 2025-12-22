@@ -6,22 +6,14 @@ pipeline {
     }
 
     environment {
-        // Docker Configuration (image locale)
         DOCKER_IMAGE = 'loujainrouached/student-app'
         DOCKER_TAG   = "${BUILD_NUMBER}"
-
-        // Kubernetes Configuration
-        NAMESPACE = 'devops'
-
-        // Git Configuration
-        GIT_REPO = 'https://github.com/loujainrouached/student-management.git'
+        NAMESPACE    = 'devops'
+        GIT_REPO     = 'https://github.com/loujainrouached/student-management.git'
     }
 
     stages {
 
-        /* =======================
-           GIT CHECKOUT
-        ======================= */
         stage('Checkout') {
             steps {
                 echo '📥 Cloning repository...'
@@ -29,22 +21,16 @@ pipeline {
             }
         }
 
-        /* =======================
-           MAVEN BUILD
-        ======================= */
         stage('Build with Maven') {
             steps {
-                echo '🔨 Building application with Maven...'
+                echo '🔨 Maven build...'
                 dir('student-management') {
                     sh 'mvn clean package -DskipTests'
                 }
             }
         }
 
-        /* =======================
-           SONARQUBE
-        ======================= */
-        stage('SONARQUBE ANALYSIS') {
+        stage('SonarQube Analysis') {
             steps {
                 echo '🔍 SonarQube analysis...'
                 dir('student-management') {
@@ -55,36 +41,17 @@ pipeline {
             }
         }
 
-        /* =======================
-           USE MINIKUBE DOCKER
-        ======================= */
-        stage('Use Minikube Docker') {
+        stage('Build Docker Image (Minikube)') {
             steps {
-                echo '🔧 Switching to Minikube Docker daemon...'
-                sh '''
-                    eval $(minikube docker-env)
-                '''
-            }
-        }
-
-        /* =======================
-           DOCKER BUILD (LOCAL)
-        ======================= */
-        stage('Build Docker Image') {
-            steps {
-                echo '🐳 Building Docker image locally (Minikube)...'
+                echo '🐳 Building Docker image directly inside Minikube...'
                 dir('student-management') {
                     sh """
-                        docker build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
-                        docker tag ${DOCKER_IMAGE}:${DOCKER_TAG} ${DOCKER_IMAGE}:latest
+                        minikube image build -t ${DOCKER_IMAGE}:${DOCKER_TAG} .
                     """
                 }
             }
         }
 
-        /* =======================
-           KUBERNETES DEPLOY
-        ======================= */
         stage('Deploy to Kubernetes') {
             steps {
                 echo '☸️ Deploying to Kubernetes...'
@@ -99,9 +66,6 @@ pipeline {
             }
         }
 
-        /* =======================
-           VERIFY DEPLOYMENT
-        ======================= */
         stage('Verify Deployment') {
             steps {
                 echo '✅ Verifying deployment...'
@@ -115,18 +79,10 @@ pipeline {
 
     post {
         success {
-            echo '✅ ===================================='
-            echo '✅ PIPELINE EXECUTED SUCCESSFULLY 🎉'
-            echo '🐳 Docker Image: ${DOCKER_IMAGE}:${DOCKER_TAG}'
-            echo '☸️ Namespace: ${NAMESPACE}'
-            echo '✅ ===================================='
+            echo '✅ PIPELINE SUCCESS 🎉'
         }
         failure {
-            echo '❌ PIPELINE FAILED ❌'
-        }
-        always {
-            echo '🧹 Cleaning unused Docker images...'
-            sh 'docker image prune -f || true'
+            echo '❌ PIPELINE FAILED'
         }
     }
 }
