@@ -62,7 +62,17 @@ stage('KUBERNETES DEPLOY') {
 }
 
 
-    
+    stage('API Test - Create Department') {
+    steps {
+        echo '🧪 Test REST API'
+        sh '''
+            sleep 20
+            curl -X POST http://192.168.49.2:32639/department/createDepartment \
+                 -H "Content-Type: application/json" \
+                 -d '{"name": "Finance", "location": "Sfax"}' || true
+        '''
+    }
+}
     }
 
     post {
