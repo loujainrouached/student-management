@@ -62,15 +62,26 @@ stage('KUBERNETES DEPLOY') {
 }
 
 
-    stage('API Test - Create Department') {
+   stage('API Test - Create Student') {
     steps {
-        echo '🧪 Test REST API'
-        sh '''
-            sleep 20
-            curl -X POST http://192.168.49.2:32639/department/createDepartment \
-                 -H "Content-Type: application/json" \
-                 -d '{"name": "Finance", "location": "Sfax"}' || true
-        '''
+        script {
+            echo '🧪 Test REST API - Create Student'
+            sh '''
+                echo "⏳ Waiting for application to be ready..."
+                sleep 45
+                
+                echo "🏥 Health check..."
+                curl -f http://192.168.49.2:32639/student/actuator/health || echo "Health check failed but continuing..."
+                
+                echo "📝 Creating student..."
+                curl -v -X POST http://192.168.49.2:32639/student/students/createStudent \
+                  -H "Content-Type: application/json" \
+                  -d '{"firstName":"Ahmed","lastName":"Mejri","email":"ahmed.mejri@esprit.tn"}'
+                
+                echo ""
+                echo "✅ API Test completed"
+            '''
+        }
     }
 }
     }
