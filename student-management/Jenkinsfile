@@ -61,18 +61,29 @@ stage('KUBERNETES DEPLOY') {
     }
 }
 
-  stage('CREATE DEPARTMENT') {
-            steps {
-                sh '''
-                echo "===== Creating Department via REST API ====="
-                sleep 20
-              curl -X POST http://192.168.49.2:<NODEPORT>/student/department/createDepartment \
-     -H "Content-Type: application/json" \
-     -d '{"name": "Finance", "location": "Sfax"}'
-
-                '''
-            }
+stage('CREATE DEPARTMENT') {
+    steps {
+        script {
+            echo "===== Creating Department via REST API ====="
+            
+            // Récupère le NodePort du service spring-service
+            NODEPORT = sh(
+                script: "kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'",
+                returnStdout: true
+            ).trim()
+            
+            echo "NodePort detected: ${NODEPORT}"
+            
+            // Appel du endpoint
+            sh """
+                sleep 10
+                curl -X POST http://192.168.49.2:${NODEPORT}/student/department/createDepartment \\
+                     -H "Content-Type: application/json" \\
+                     -d '{"name": "Finance", "location": "Sfax"}'
+            """
         }
+    }
+}
 
   
 }
