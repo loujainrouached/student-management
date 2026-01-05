@@ -61,26 +61,41 @@ stage('KUBERNETES DEPLOY') {
     }
 }
 
-stage('CREATE DEPARTMENT') {
-    steps {
-       script {
-    echo "===== Creating Department via REST API ====="
-    def NODEPORT = sh(script: "kubectl get svc spring-service -n devops -o jsonpath={.spec.ports[0].nodePort}", returnStdout: true).trim()
-    echo "NodePort detected: ${NODEPORT}"
+  stage('CREATE DEPARTMENT') {
+            steps {
+                script {
+                    echo "Creating a Department via REST API..."
 
-    sleep 10
+                    def nodePort = sh(
+                        script: "${KUBECTL} get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'",
+                        returnStdout: true
+                    ).trim()
+                    echo "NodePort detected: ${nodePort}"
 
-    sh """
-        curl -X POST http://192.168.49.2:${NODEPORT}/student/department/createDepartment \
-        -H 'Content-Type: application/json' \
-        -d '{"name": "Finance", "location": "Sfax"}'
-    """
-}
+                    def response = sh(
+                        script: """curl -s -o /dev/null -w '%{http_code}' \
+                            -X POST http://192.168.49.2:${nodePort}/student/department/createDepartment \
+                            -H 'Content-Type: application/json' \
+                            -d '{\"name\": \"Finance\", \"location\": \"Sfax\"}'""",
+                        returnStdout: true
+                    ).trim()
 
-}
+                    echo "Response code: ${response}"
+                    if (response != '200' && response != '201') {
+                        error "Department creation failed with HTTP code ${response}"
+                    }
+                }
+            }
+        }
 
-  
-}
+        stage('GET ALL DEPARTMENTS') {
+            steps {
+                script {
+                    echo "Fetching all departments..."
+                    sh "curl -s http://192.168.49.2:${nodePort}/student/department/getAllDepartment"
+                }
+            }
+        }
     }
 
     post {
