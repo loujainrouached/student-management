@@ -68,5 +68,5 @@ spec:
   ports:
     - protocol: TCP
       port: 8080
-      targetPort: 8080
+      targetPort: 8089    # port du conteneur où l'application écoute
       nodePort: 32639
