@@ -63,23 +63,24 @@ pipeline {
             }
         }
 
-         stage('Wait for Spring Boot') {
-            steps {
-                echo "Waiting for Spring Boot app to be ready..."
-                // Vérifie le health endpoint toutes les 5s jusqu'à ce qu'il renvoie "UP"
-                sh '''
-              NODE_PORT=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath={.spec.ports[0].nodePort})
-              URL="http://localhost:$NODE_PORT/student/actuator/health"
-
-                echo "Waiting for service at $URL..."
-                until curl -s $URL | grep UP; do
-                  echo "Service not ready yet..."
-                  sleep 5
-                done
-                echo "Service is UP!"
-                '''
-            }
+       stage('Wait for Spring Boot') {
+    steps {
+        echo "Waiting for Spring Boot app to be ready..."
+        script {
+            NODE_PORT = sh(script: "kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'", returnStdout: true).trim()
+            URL = "http://localhost:${NODE_PORT}/student/actuator/health"
+            sh """
+            echo "Waiting for service at $URL..."
+            until curl -s $URL | grep UP; do
+                echo "Service not ready yet..."
+                sleep 5
+            done
+            echo "Service is UP!"
+            """
         }
+    }
+}
+
 
         stage('Create Department') {
             steps {
