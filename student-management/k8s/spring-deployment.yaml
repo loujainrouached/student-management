@@ -13,10 +13,11 @@ spec:
       labels:
         app: studentmang-app
     spec:
-      containers:
-        - name: studentmang-app
-          image: loujainrouached/student-app:latest
-          imagePullPolicy: Always
+     containers:
+  - name: studentmang-app
+    image: student-management-app:1.0
+    imagePullPolicy: IfNotPresent
+
           ports:
             - containerPort: 8089
 
