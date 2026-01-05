@@ -7,6 +7,7 @@ pipeline {
 
     environment {
         NAMESPACE = 'devops'
+        KUBECTL = '/usr/local/bin/kubectl' // <-- ajouter chemin kubectl
     }
 
     stages {
@@ -46,28 +47,28 @@ pipeline {
                 }
             }
         }
-stage('KUBERNETES DEPLOY') {
-    steps {
-        echo '☸️ Deploy to Kubernetes'
-        sh '''
-            ls -l
-            ls -l student-management
-            ls -l student-management/k8s
 
-            kubectl apply -f student-management/k8s
-            kubectl get pods -n devops
-            kubectl get svc -n devops
-        '''
-    }
-}
+        stage('Kubernetes Deploy') {
+            steps {
+                echo '☸️ Deploy to Kubernetes'
+                sh '''
+                    ls -l
+                    ls -l student-management
+                    ls -l student-management/k8s
 
-  stage('CREATE DEPARTMENT') {
+                    ${KUBECTL} apply -f student-management/k8s
+                    ${KUBECTL} get pods -n ${NAMESPACE}
+                    ${KUBECTL} get svc -n ${NAMESPACE}
+                '''
+            }
+        }
+
+        stage('Create Department') {
             steps {
                 script {
                     echo "Creating a Department via REST API..."
-
                     def nodePort = sh(
-                        script: "${KUBECTL} get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'",
+                        script: "${KUBECTL} get svc spring-service -n ${NAMESPACE} -o jsonpath='{.spec.ports[0].nodePort}'",
                         returnStdout: true
                     ).trim()
                     echo "NodePort detected: ${nodePort}"
@@ -84,18 +85,22 @@ stage('KUBERNETES DEPLOY') {
                     if (response != '200' && response != '201') {
                         error "Department creation failed with HTTP code ${response}"
                     }
+
+                    // Stocker nodePort pour le stage suivant
+                    env.NODE_PORT = nodePort
                 }
             }
         }
 
-        stage('GET ALL DEPARTMENTS') {
+        stage('Get All Departments') {
             steps {
                 script {
                     echo "Fetching all departments..."
-                    sh "curl -s http://192.168.49.2:${nodePort}/student/department/getAllDepartment"
+                    sh "curl -s http://192.168.49.2:${env.NODE_PORT}/student/department/getAllDepartment"
                 }
             }
         }
+
     }
 
     post {
@@ -107,3 +112,4 @@ stage('KUBERNETES DEPLOY') {
         }
     }
 
+} // <-- fin pipeline
