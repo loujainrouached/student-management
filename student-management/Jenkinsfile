@@ -66,9 +66,10 @@ stage('KUBERNETES DEPLOY') {
                 sh '''
                 echo "===== Creating Department via REST API ====="
                 sleep 20
-                curl -X POST http://192.168.49.2:32639/department/createDepartment \
-                     -H "Content-Type: application/json" \
-                     -d '{"name": "Finance", "location": "Sfax"}'
+              curl -X POST http://192.168.49.2:<NODEPORT>/student/department/createDepartment \
+     -H "Content-Type: application/json" \
+     -d '{"name": "Finance", "location": "Sfax"}'
+
                 '''
             }
         }
