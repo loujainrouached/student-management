@@ -67,9 +67,8 @@ stage('CREATE DEPARTMENT') {
     steps {
         sh '''
         echo "===== Creating Department via REST API ====="
-        # IP fixe de ton Minikube
+        sleep 20
         SERVICE_IP=192.168.49.2
-        # NodePort récupéré depuis kubectl
         NODE_PORT=$(kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}')
         curl -X POST "http://${SERVICE_IP}:${NODE_PORT}/student/department/createDepartment" \
              -H "Content-Type: application/json" \
@@ -77,6 +76,7 @@ stage('CREATE DEPARTMENT') {
         '''
     }
 }
+
 
 
 
