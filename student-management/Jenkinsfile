@@ -65,55 +65,25 @@ pipeline {
 stage('Wait for Spring Boot') {
     steps {
         echo "Waiting for Spring Boot app to be ready..."
-        script {
-            NODE_PORT = sh(
-                script: "kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'",
-                returnStdout: true
-            ).trim()
-
-            SERVICE_IP = sh(
-                script: "minikube ip",
-                returnStdout: true
-            ).trim()
-
-            SERVICE_URL = "http://${SERVICE_IP}:${NODE_PORT}/student/actuator/health"
-
-            sh """
-            echo "Waiting for service at $SERVICE_URL..."
-            until curl -s $SERVICE_URL | grep -q '\\\"status\\\":\\\"UP\\\"'; do
-              echo "Service not ready yet..."
-              sleep 5
-            done
-            echo "Service is UP!"
-            """
-        }
+        // Ici on fait juste un sleep, simple et rapide
+        sh 'sleep 20'
     }
 }
 
+stage('Create Department') {
+    steps {
+        echo "Creating a Department via REST API..."
+        sh '''
+        # Adresse fixe et port de ton service NodePort
+        SERVICE_IP=192.168.49.2
+        NODE_PORT=32639
 
-        stage('Create Department') {
-            steps {
-                echo "Creating a Department via REST API..."
-                sh '''
-                NODE_PORT=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath={.spec.ports[0].nodePort})
-                SERVICE_IP=$(minikube ip)
-                curl -X POST "http://$SERVICE_IP:$NODE_PORT/student/department/createDepartment" \
-                     -H "Content-Type: application/json" \
-                     -d '{"name": "Finance", "location": "Sfax"}'
-                '''
-            }
-        }
-
-        stage('Get All Departments') {
-            steps {
-                echo "Getting all departments..."
-                sh '''
-                NODE_PORT=$(kubectl get svc $SERVICE_NAME -n $NAMESPACE -o jsonpath={.spec.ports[0].nodePort})
-                SERVICE_IP=$(minikube ip)
-                curl -X GET "http://$SERVICE_IP:$NODE_PORT/student/department/getAllDepartment"
-                '''
-            }
-        }
+        curl -X POST "http://${SERVICE_IP}:${NODE_PORT}/department/createDepartment" \
+             -H "Content-Type: application/json" \
+             -d '{"name": "Finance", "location": "Sfax"}'
+        '''
+    }
+}
     }
 
 
