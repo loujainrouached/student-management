@@ -66,24 +66,18 @@ pipeline {
 stage('CREATE DEPARTMENT') {
     steps {
         sh '''
-        echo "===== Waiting for Spring Boot to be ready ====="
-        SERVICE_IP=$(minikube ip)
-        NODE_PORT=$(kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}')
-        SERVICE_URL="http://${SERVICE_IP}:${NODE_PORT}/student/actuator/health"
-
-        until curl -s $SERVICE_URL | grep -q '"status":"UP"'; do
-            echo "Service not ready yet..."
-            sleep 5
-        done
-        echo "Service is UP!"
-
         echo "===== Creating Department via REST API ====="
+        # IP fixe de ton Minikube
+        SERVICE_IP=192.168.49.2
+        # NodePort récupéré depuis kubectl
+        NODE_PORT=$(kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}')
         curl -X POST "http://${SERVICE_IP}:${NODE_PORT}/student/department/createDepartment" \
              -H "Content-Type: application/json" \
              -d '{"name": "Finance", "location": "Sfax"}'
         '''
     }
 }
+
 
 
     }
