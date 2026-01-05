@@ -63,15 +63,18 @@ pipeline {
             }
         }
 
-       stage('Wait for Spring Boot') {
+     stage('Wait for Spring Boot') {
     steps {
         echo "Waiting for Spring Boot app to be ready..."
         script {
-            NODE_PORT = sh(script: "kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'", returnStdout: true).trim()
-            URL = "http://localhost:${NODE_PORT}/student/actuator/health"
+            NODE_PORT = sh(
+                script: "kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}'",
+                returnStdout: true
+            ).trim()
+            SERVICE_URL = "http://localhost:${NODE_PORT}/student/actuator/health"
             sh """
-            echo "Waiting for service at $URL..."
-            until curl -s $URL | grep UP; do
+            echo "Waiting for service at $SERVICE_URL..."
+            until curl -s $SERVICE_URL | grep UP; do
                 echo "Service not ready yet..."
                 sleep 5
             done
