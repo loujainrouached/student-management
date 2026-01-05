@@ -61,44 +61,18 @@ stage('KUBERNETES DEPLOY') {
     }
 }
 
-stage('API Test - Create Student') {
-    steps {
-        script {
-            echo '🧪 Test REST API - Create Student'
-            sh '''
-                echo "⏳ Waiting for pod to be ready..."
-                
-                # Attendre que le nouveau pod soit Ready (max 5 minutes)
-                kubectl wait --for=condition=ready pod \
-                    -l app=studentmang-app \
-                    -n devops \
-                    --timeout=300s
-                
-                echo "✅ Pod is ready, waiting for application startup..."
-                sleep 30
-                
-                echo "🏥 Health check..."
-                for i in {1..10}; do
-                    if curl -f http://192.168.49.2:32639/student/actuator/health 2>/dev/null; then
-                        echo "✅ Application is healthy!"
-                        break
-                    fi
-                    echo "Attempt $i/10 failed, retrying in 5s..."
-                    sleep 5
-                done
-                
-                echo ""
-                echo "📝 Creating student..."
-                curl -v -X POST http://192.168.49.2:32639/student/students/createStudent \
-                  -H "Content-Type: application/json" \
-                  -d '{"firstName":"Ahmed","lastName":"Mejri","email":"ahmed.mejri@esprit.tn"}'
-                
-                echo ""
-                echo "✅ API Test completed"
-            '''
+  stage('CREATE DEPARTMENT') {
+            steps {
+                sh '''
+                echo "===== Creating Department via REST API ====="
+                sleep 20
+                curl -X POST http://192.168.49.2:32639/department/createDepartment \
+                     -H "Content-Type: application/json" \
+                     -d '{"name": "Finance", "location": "Sfax"}'
+                '''
+            }
         }
-    }
-}
+
   
 }
     }
