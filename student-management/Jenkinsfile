@@ -63,19 +63,7 @@ pipeline {
             }
         }
 
-stage('CREATE DEPARTMENT') {
-    steps {
-        sh '''
-        echo "===== Creating Department via REST API ====="
-        sleep 20
-        SERVICE_IP=192.168.49.2
-        NODE_PORT=$(kubectl get svc spring-service -n devops -o jsonpath='{.spec.ports[0].nodePort}')
-        curl -X POST "http://${SERVICE_IP}:${NODE_PORT}/department/createDepartment" \
-             -H "Content-Type: application/json" \
-             -d '{"name": "Finance", "location": "Sfax"}'
-        '''
-    }
-}
+
 
 
 
